@@ -448,16 +448,16 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 			exit(1);
 		}
 
-		solar_phi = Pbc_phi(theta_a);
-		solar_theta = Pbc_theta(phi_a); //TO CHECK, DEPENDS FROM THE SYSTEM OF COORDINATES OF THE PMTs
+		solar_phi = Pbc_phi( M_PI_2 - DegToRad( solar_alt ) );
+		solar_theta = Pbc_theta (M_PI_2 - 0.989601686 - DegToRad (solar_az) ); //TO CHECK, DEPENDS FROM THE SYSTEM OF COORDINATES OF THE PMTs
 
 		if (IsBackgrounds) {
 			solar_nu_theta = gRandom -> TRandom::Uniform(2*PI);
 			solar_nu_phi = TMath::ACos(-1.+2.*gRandom->TRandom::Uniform(0,1));
 		} else {
 
-			solar_nu_phi = Pbc_phi ( M_PI - solar_phi);
-			solar_nu_theta = Pbc_theta ( M_PI + solar_theta);
+			solar_nu_phi =  Pbc_phi(M_PI - solar_phi);
+			solar_nu_theta = Pbc_theta( M_PI + solar_theta);
 
 		}
 

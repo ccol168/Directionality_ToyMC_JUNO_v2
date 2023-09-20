@@ -62,7 +62,7 @@ double cos_alpha (double XPMT, double YPMT, double ZPMT, double XVertex, double 
     double modules = mod(x1,y1,z1)*mod(x2,y2,z2);
     double scalar = x1*x2 + y1*y2 + z1*z2 ;
 
-    return  scalar/modules;
+    return  -scalar/modules;
 }
 
 void SphericalToCartesian(double & x, double & y, double & z, double r, double theta, double phi){
