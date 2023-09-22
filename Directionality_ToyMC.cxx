@@ -58,7 +58,7 @@ TH1D** Time_PDFs = new TH1D*[2]; //container for the time PDFs, pos 0 for Cheren
 double n = 1.5 ; //refraction index
 double c = 299792458 ; // m/s
 double m_e = 0.51099895; //MeV    electron mass
-double Be7_energy = 0.876; //MeV    energy of a 7Be neutrino
+double Be7_energy = 0.862; //MeV    energy of a 7Be neutrino
 double pep_energy = 1.44; //MeV  energy of a pep neutrino
 double nu_energy;
 //double Event_Energy = 0.5; //MeV
@@ -109,6 +109,8 @@ bool fastmode; //does not save the events at more than 5 ns
 double TimeCut; //cut photons emitted at times lower than timecut
 bool FixedSun, IsBackgrounds;
 double Fastmode_cut; //time cut in fastmode
+std::string typenu;
+double WindowEndpoint;
 
 double MaxPMTDistance; //maximum distance in phi between two PMTs
 
@@ -196,8 +198,18 @@ double survival_probability () {
 
 	double E_nu = nu_energy*pow(10,6);
 	//datas from pep, see Xuefeng technote
-	double V_x = 5.13e-12;
-	double Delta_V_x2__V_x2 = 0.076;
+
+	double V_x, Delta_V_x2__V_x2;
+
+	if (typenu == "pep") {
+		V_x = 5.13e-12;
+		Delta_V_x2__V_x2 = 0.076;
+	} else if (typenu == "Be7") {
+		V_x = 6.16e-12;
+		Delta_V_x2__V_x2 = 0.029;
+	} else {
+		throw "ERROR: invalid typenu";
+	}
 
 	double theta12 = asin(sqrt(0.307));
 	double theta13 = asin(sqrt(0.0220));
@@ -321,7 +333,7 @@ Tuple Generate_Cone (double theta_0, double phi_0, double angle) {
         theta_out = theta;
 
 	// traslate the cone on the original system
-    } else {
+    } else { 
 
         cos_ph1 = -sin(phi_0)*cos(theta)*sin(phi) + cos(phi_0)*cos(phi);
         sin_ph_cos_th = cos(phi_0)*cos(theta_0)*cos(theta)*sin(phi) - sin(theta_0)*sin(theta)*sin(phi) + cos(theta_0)*sin(phi_0)*cos(phi);
@@ -398,8 +410,13 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 	}
 
 	//Randomize the energy of the event
-	double Event_Energy = CalculateEventEnergy();
-
+	double Event_Energy;
+	if (IsBackgrounds) {
+		Event_Energy = gRandom -> TRandom::Uniform(min_eEnergy,WindowEndpoint);
+	} else {
+		Event_Energy = CalculateEventEnergy();
+	}
+	
 	double theta_e = acos((1+m_e/nu_energy)*pow(Event_Energy/(Event_Energy+2*m_e),0.5)); //angle between the solar-nu and the electron scattered (assuming 7Be-nu)
 	double beta_el = pow(1-(pow(m_e/(Event_Energy+m_e),2)),0.5) ; //beta of the electron generated
 	double theta_Cher = acos(1/(beta_el*n)); //Cherenkov angle
@@ -438,7 +455,6 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		solar_phi = 0.;
 
 	} else {
-		double blank;
 		double solar_az,solar_alt;
 		double theta_a,phi_a;
 		
@@ -449,7 +465,7 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		}
 
 		solar_phi = Pbc_phi( M_PI_2 - DegToRad( solar_alt ) );
-		solar_theta = Pbc_theta (M_PI_2 - 0.989601686 - DegToRad (solar_az) ); //TO CHECK, DEPENDS FROM THE SYSTEM OF COORDINATES OF THE PMTs
+		solar_theta = Pbc_theta (M_PI_2 - 0.989601686 - DegToRad (solar_az) ); //0.9... is the angle between the N pole and JUNO coordinates
 
 		if (IsBackgrounds) {
 			solar_nu_theta = gRandom -> TRandom::Uniform(2*PI);
@@ -676,7 +692,7 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	vector<string> col1;
 	vector<string> col2;
 	string line;
-	string cher_times, scint_times, typenu;
+	string cher_times, scint_times;
 	string origin_rootfile, PMTPositions, SolarPositions;
 	bool RandomIntVertex;
 
@@ -731,6 +747,8 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	iss16 >> IsBackgrounds;
 	istringstream iss17(col2[17]);
 	iss17 >> Fastmode_cut;
+	istringstream iss18(col2[18]);
+	iss18 >> WindowEndpoint;
 
 	//cout << "PMT Number " << PMTNumber << endl;
 

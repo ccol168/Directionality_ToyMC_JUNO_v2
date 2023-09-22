@@ -1,6 +1,6 @@
 PEatMeV 2639
 ChScRatio 0.0022
-NEvents 20000
+NEvents 20
 FV 14.0
 OriginRootfile My_Rootfiles/Elecsim_PDFs_FV14_rc1_Dense.root
 CherenkovTimes Hama_Cherenkov_Times
@@ -16,3 +16,4 @@ SolarPositions Sun_Position/sunposition_since1Jan2024_for10years_PDFcreation.txt
 FixedSun 0
 IsBackgrounds 0
 Fastmode_Cut 5
+WindowEndpoint 1.4
