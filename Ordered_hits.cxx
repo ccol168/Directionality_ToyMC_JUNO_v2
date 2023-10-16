@@ -217,12 +217,15 @@ int main(int argc, char** argv) {
             //do what you do
             if (Type -> at(j) == 0 && Hit -> at(j) == 1) {
                 Scint_cos_alpha -> Fill(cos_alpha(PMT_Position[ClosestPMT -> at(j)][0],PMT_Position[ClosestPMT -> at(j)][1],PMT_Position[ClosestPMT -> at(j)][2],XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
-                Scint_cos_alpha_all -> Fill(cos_alpha(PhX -> at(j),PhY -> at(j) ,PhZ -> at(j),XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
+                //Scint_cos_alpha_all -> Fill(cos_alpha(PhX -> at(j)*1000.,PhY -> at(j)*1000. ,PhZ -> at(j)*1000.,XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
             } else if (Type -> at(j)==1 && Hit -> at(j) == 1) {
                 Cherenkov_cos_alpha -> Fill(cos_alpha(PMT_Position[ClosestPMT -> at(j)][0],PMT_Position[ClosestPMT -> at(j)][1],PMT_Position[ClosestPMT -> at(j)][2],XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
-            } else if (Type==0 && Hit == 0) {
-                Scint_cos_alpha_all -> Fill(cos_alpha(PhX -> at(j),PhY -> at(j),PhZ -> at(j),XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
+            } else if (Type -> at(j) == 0 ) {
+                Scint_cos_alpha_all -> Fill(cos_alpha(PhX -> at(j)*1000.,PhY -> at(j)*1000. ,PhZ -> at(j)*1000.,XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
             }
+            
+            //Scint_cos_alpha_all -> Fill(cos_alpha(PhX -> at(j),PhY -> at(j),PhZ -> at(j),XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
+            
 
             //cout<<"Done "<<i<<endl;F
 
