@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 	double blank;
 	int Index;
 	double x_PMT,y_PMT,z_PMT, r_PMT, theta_PMT, phi_PMT;
-    int PMTNumber = 4996;
+    int PMTNumber = 4996; //number of Hamamatsu PMTs
 
 	for(int PMT=0;PMT<PMTNumber;PMT++){		
 		ReadPMTPosition >> Index;
@@ -134,16 +134,21 @@ int main(int argc, char** argv) {
     TH1F *Scint_cos_alpha_all = new TH1F("Scint_cos_alpha_all","Scint_cos_alpha_all",60,-1,1);
     TH1F *Cherenkov_cos_alpha_firstn = new TH1F(TString::Format("Cherenkov_cos_alpha_first%i",Nth_hits),TString::Format("Cherenkov_cos_alpha_first%i",Nth_hits),60,-1,1);
     TH1F *Scint_cos_alpha_firstn = new TH1F(TString::Format("Scint_cos_alpha_first%i",Nth_hits),TString::Format("Scint_cos_alpha_first%i",Nth_hits),60,-1,1);
-    TH1F *Cherenkov_cos_alpha_8th_hit = new TH1F("Cherenkov_cos_alpha_8th_hit","Cherenkov_cos_alpha_8th_hit",60,-1,1);
-
+    
     TH1F *Nth_hit_cos_alpha[Nth_hits];
+    TH1F *Nth_hit_cos_alpha_cher[Nth_hits];
+    TH1F *Nth_hit_cos_alpha_scint[Nth_hits];
 
     for (int i=0;i<Nth_hits;i++) {
         if (Is_Bkg == 0) {
         	Nth_hit_cos_alpha[i] = new TH1F(TString::Format("Nsolar_%i",i+1),TString::Format("Nsolar_%i",i+1),60,-1,1);
+            Nth_hit_cos_alpha_scint[i] = new TH1F(TString::Format("Nsolar_%i_scint",i+1),TString::Format("Nsolar_%i_scint",i+1),60,-1,1);
+		    Nth_hit_cos_alpha_cher[i] = new TH1F(TString::Format("Nsolar_%i_cher",i+1),TString::Format("Nsolar_%i_cher",i+1),60,-1,1);
 	    }
 	    else {
 		    Nth_hit_cos_alpha[i] = new TH1F(TString::Format("Nbkg_%i",i+1),TString::Format("Nbkg_%i",i+1),60,-1,1);
+            Nth_hit_cos_alpha_scint[i] = new TH1F(TString::Format("Nbkg_%i_scint",i+1),TString::Format("Nsolar_%i_scint",i+1),60,-1,1);
+		    Nth_hit_cos_alpha_cher[i] = new TH1F(TString::Format("Nbkg_%i_cher",i+1),TString::Format("Nsolar_%i_cher",i+1),60,-1,1);
 	    }
     }
 
@@ -155,12 +160,28 @@ int main(int argc, char** argv) {
 		FirstTen[i] = 0;
 	}
 
+    int vec_lenght = 0;
+    int HitsinEvent;
 
     for (int i=0;i<TotalEvents;i++) {
 
         tree -> GetEntry(i);
 
-        int vec_lenght = Start_Time -> size();
+        vec_lenght = Hit -> size();
+
+        //Checks if there are enough hits to have at least Nth_hits (the value given at the beginning) hits, if not it skips the event entirely
+        //If that happens too often, it is advised to lower Nth_hits or make Fastmode_cut bigger
+
+	    HitsinEvent = 0;
+
+	    for (int k=0;k<vec_lenght;k++) {
+		    HitsinEvent += Hit -> at(k); //counts the number of Hits (Hit==1 if the hit happens)
+	    }
+
+	    if (HitsinEvent < Nth_hits) {
+		    cout << "Event number " << i+1 << " thrown away, too few elements (" << HitsinEvent << "/" << Nth_hits << ")"  << endl;
+		    continue;
+	    }
 
         vector <double> val_cos_alpha;
         
@@ -204,7 +225,7 @@ int main(int argc, char** argv) {
 							cost=0;
 							for (int h=k;h<Nth_hits-1;h++) {
 								FirstTenPlaces[h+1] = provvint[cost];
-								 FirstTenValues[h+1] = provvdouble[cost];
+								FirstTenValues[h+1] = provvdouble[cost];
 								cost ++;
 
 							}
@@ -233,13 +254,14 @@ int main(int argc, char** argv) {
                 if (k == h) {
                     Nth_hit_cos_alpha[h] -> Fill(val_cos_alpha[FirstTenPlaces[k]]);
 
-                    if (k==7 && Type -> at(FirstTenPlaces[k]) == 1) {
-                        Cherenkov_cos_alpha_8th_hit ->  Fill(val_cos_alpha[FirstTenPlaces[k]]);
-                    }
-
+                    if (Type -> at(FirstTenPlaces[k]) == 1) {
+                        Nth_hit_cos_alpha_cher[h] ->  Fill(val_cos_alpha[FirstTenPlaces[k]]);
+                    } 
+			        if (Type -> at(FirstTenPlaces[k]) == 0) {
+                        Nth_hit_cos_alpha_scint[h] ->  Fill(val_cos_alpha[FirstTenPlaces[k]]);
+                    }  
                 } 
             }
-
 		}
 
         val_cos_alpha.clear();
@@ -263,11 +285,11 @@ int main(int argc, char** argv) {
     ChScRatio -> Write();
     Scint_cos_alpha_firstn -> Write();
     Cherenkov_cos_alpha_firstn -> Write();
-    Cherenkov_cos_alpha_8th_hit -> Write();
-
     
     for (int i=0; i<Nth_hits;i++) {
         Nth_hit_cos_alpha[i] -> Write();
+        Nth_hit_cos_alpha_cher[i] -> Write();
+	    Nth_hit_cos_alpha_scint[i] -> Write();
     }
 
     
