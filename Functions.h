@@ -1,0 +1,10 @@
+double Pbc_phi (double);
+double Pbc_theta (double);
+double GetFloatPrecision(double,double);
+double DegToRad (double deg);
+double RadToDeg (double rad);
+void CartesianToSpherical(double & r,double & theta,double & phi,double x,double y,double z );
+void SphericalToCartesian(double & x, double & y, double & z, double r, double theta, double phi);
+double Distance(double x1, double y1, double z1, double x2, double y2, double z2);
+double DistanceOnASphere(double r, double theta1, double phi1, double theta2, double phi2);
+double mod(double x, double y, double z);

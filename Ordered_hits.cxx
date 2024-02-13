@@ -33,6 +33,7 @@
 #include <TFitResult.h>
 #include <TMatrixDSym.h>
 #include "TMinuit.h"
+#include "Functions.h"
 
 #include <TString.h>
 
@@ -44,10 +45,6 @@
 #include "Math/Util.h"
 
 using namespace std;
-
-double mod (double x, double y, double z) {
-    return sqrt(x*x + y*y + z*z);
-}
 
 double cos_alpha (double XPMT, double YPMT, double ZPMT, double XVertex, double YVertex, double ZVertex, double x2, double y2, double z2) {
 
@@ -62,16 +59,7 @@ double cos_alpha (double XPMT, double YPMT, double ZPMT, double XVertex, double 
     double modules = mod(x1,y1,z1)*mod(x2,y2,z2);
     double scalar = x1*x2 + y1*y2 + z1*z2 ;
 
-    return  -scalar/modules;
-}
-
-void SphericalToCartesian(double & x, double & y, double & z, double r, double theta, double phi){
-	if ( r < 0.0 ){
-		throw "Negative radius in sphericalToCartesian()";
-		}
-	x = r * TMath::Sin( phi ) * TMath::Cos( theta );
-	y = r * TMath::Sin( phi ) * TMath::Sin( theta );
-	z = r * TMath::Cos( phi );
+    return  scalar/modules;
 }
 
 int main(int argc, char** argv) {
@@ -135,12 +123,10 @@ int main(int argc, char** argv) {
     tree -> SetBranchAddress("Int_Vertex_y",&YVertex);
     tree -> SetBranchAddress("Int_Vertex_z",&ZVertex);
     tree -> SetBranchAddress("Closest_PMT",&ClosestPMT);
-    tree -> SetBranchAddress("Solar_theta",&nu_theta);
-    tree -> SetBranchAddress("Solar_phi",&nu_phi);
+    tree -> SetBranchAddress("Neutrino_theta",&nu_theta);
+    tree -> SetBranchAddress("Neutrino_phi",&nu_phi);
 
     int TotalEvents = tree -> GetEntries();
-
-    //cout << "Done" << endl;
 
     TH1F *ChScRatio = new TH1F("ChScRatio","ChScRatio",Nth_hits,0,Nth_hits);
     TH1F *Cherenkov_cos_alpha = new TH1F("Cherenkov_cos_alpha","Cherenkov_cos_alpha",60,-1,1);
@@ -150,10 +136,6 @@ int main(int argc, char** argv) {
     TH1F *Scint_cos_alpha_firstn = new TH1F(TString::Format("Scint_cos_alpha_first%i",Nth_hits),TString::Format("Scint_cos_alpha_first%i",Nth_hits),60,-1,1);
     TH1F *Cherenkov_cos_alpha_8th_hit = new TH1F("Cherenkov_cos_alpha_8th_hit","Cherenkov_cos_alpha_8th_hit",60,-1,1);
 
-    //TH1F *CheckDifference = new TH1F ("")
-
-    //cout << "Done" << endl;
-    //cout<<Nth_hits<<endl;
     TH1F *Nth_hit_cos_alpha[Nth_hits];
 
     for (int i=0;i<Nth_hits;i++) {
@@ -163,10 +145,7 @@ int main(int argc, char** argv) {
 	    else {
 		    Nth_hit_cos_alpha[i] = new TH1F(TString::Format("Nbkg_%i",i+1),TString::Format("Nbkg_%i",i+1),60,-1,1);
 	    }
-        //cout << "DONE " <<TString::Format("hit_%ith_cos_alpha",i) << endl;
     }
-
-    //cout << "Done" << endl;
 
     int* FirstTen = new int[Nth_hits]; //contains the number of times a Cherenkov photon arrived in the n-th position
 	double* FirstTenValues = new double[Nth_hits]; //contains the time at which the first n-th photon arrived (could be Cherenkov or scintillation)
@@ -176,7 +155,6 @@ int main(int argc, char** argv) {
 		FirstTen[i] = 0;
 	}
 
-    //cout << "Done" << endl;
 
     for (int i=0;i<TotalEvents;i++) {
 
@@ -185,54 +163,29 @@ int main(int argc, char** argv) {
         int vec_lenght = Start_Time -> size();
 
         vector <double> val_cos_alpha;
-        /*
-        double *val_Start_Time = Start_Time -> data();
-        bool *val_Type = Type -> data();
-        bool *val_Hit = Hit -> data();
-        double* val_PhX = PhX -> data();
-        double* val_PhY = PhY -> data();
-        double* val_PhZ = PhZ -> data();
-        int* val_ClosestPMT = ClosestPMT -> data();
-        */
         
         for (int k=0; k<Nth_hits; k++) {
 
 		    FirstTenValues[k] = 10000;
 		    FirstTenPlaces[k] = -1; //useless, just to be sure that it is updating correctly into the cycle
-
-            //if ((k==0 || k==Nth_hits-1) && i==0 )cout << "Done " << k << endl;
         }
-
-        //cout << "In while " << CurrentEvent << "  " << NEvent << "  " << i << "  " <<TotalPhotons<< endl;
        
         for (int j=0;j<vec_lenght;j++) {
-    
-            //cout << "Readtree " << i << endl;
            
-
             SphericalToCartesian(nu_x,nu_y,nu_z,1.,nu_theta,nu_phi);
 
-            //cout<<"Done "<<i << "   " << ClosestPMT <<endl;
-
-            //do what you do
             if (Type -> at(j) == 0 && Hit -> at(j) == 1) {
                 Scint_cos_alpha -> Fill(cos_alpha(PMT_Position[ClosestPMT -> at(j)][0],PMT_Position[ClosestPMT -> at(j)][1],PMT_Position[ClosestPMT -> at(j)][2],XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
-                //Scint_cos_alpha_all -> Fill(cos_alpha(PhX -> at(j)*1000.,PhY -> at(j)*1000. ,PhZ -> at(j)*1000.,XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
             } else if (Type -> at(j)==1 && Hit -> at(j) == 1) {
                 Cherenkov_cos_alpha -> Fill(cos_alpha(PMT_Position[ClosestPMT -> at(j)][0],PMT_Position[ClosestPMT -> at(j)][1],PMT_Position[ClosestPMT -> at(j)][2],XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
             } else if (Type -> at(j) == 0 ) {
                 Scint_cos_alpha_all -> Fill(cos_alpha(PhX -> at(j)*1000.,PhY -> at(j)*1000. ,PhZ -> at(j)*1000.,XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
             }
-            
-            //Scint_cos_alpha_all -> Fill(cos_alpha(PhX -> at(j),PhY -> at(j),PhZ -> at(j),XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
-            
-
-            //cout<<"Done "<<i<<endl;F
 
             if (ClosestPMT -> at(j) != -1 ) val_cos_alpha.push_back(cos_alpha(PMT_Position[ClosestPMT -> at(j)][0],PMT_Position[ClosestPMT -> at(j)][1],PMT_Position[ClosestPMT -> at(j)][2],XVertex,YVertex,ZVertex,nu_x,nu_y,nu_z));
             else val_cos_alpha.push_back(0);
 
-            for (int k=0; k<Nth_hits; k++) {	//looks if a photon is in the first 10 to arrive and updates the arrays accordingly
+            for (int k=0; k<Nth_hits; k++) {	//looks if a photon is in the first N to arrive and updates the arrays accordingly
 
 					if (Start_Time -> at(j) < FirstTenValues[k] && Hit -> at(j) ==1) {
 					
@@ -266,12 +219,8 @@ int main(int argc, char** argv) {
 				}
 
         } 
-
-        //cout << "Out while" << endl;
         
         for (int k=0;k<Nth_hits;k++) { //updates the counter
-
-			//cout << FirstTenValues[k]<<"  ";
 
 			if ( Type -> at(FirstTenPlaces[k]) == 1) {
 				FirstTen[k]++;
@@ -294,9 +243,6 @@ int main(int argc, char** argv) {
 		}
 
         val_cos_alpha.clear();
-
-
-        //cout << "Event #"<<CurrentEvent<<" ended with " << j <<" photons, total number cycled " <<i<<"/"<<TotalPhotons<<endl;
         
     }
 

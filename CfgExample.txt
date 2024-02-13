@@ -1,6 +1,6 @@
 PEatMeV 2639
 ChScRatio 0.0022
-NEvents 20
+NEvents 1000
 FV 14.0
 OriginRootfile My_Rootfiles/Elecsim_PDFs_FV14_rc1_Dense.root
 CherenkovTimes Hama_Cherenkov_Times

@@ -36,6 +36,8 @@
 
 #include <TString.h>
 
+#include "Functions.h"
+
 #ifndef ROOT_TH1D
 #endif
 
@@ -61,7 +63,6 @@ double m_e = 0.51099895; //MeV    electron mass
 double Be7_energy = 0.862; //MeV    energy of a 7Be neutrino
 double pep_energy = 1.44; //MeV  energy of a pep neutrino
 double nu_energy;
-//double Event_Energy = 0.5; //MeV
 double G_F = 1.1663787*pow(10,-11); //MeV^-2  Fermi constant
 double sin2_thetaW = 0.23121; //Weinberg angle
 
@@ -70,17 +71,9 @@ double min_eEnergy; // minimum deposited energy from a neutrino scattering
 
 double RefractionIndex = 1.5;
 
-// VARIABLES NO LONGER USEFUL
-double TravelledDistance = 19.0;
-double AbsorptionLength = 80.;
-double QE = 0.3;
-double AbsorptionProbability = (1-TMath::Exp(-TravelledDistance/AbsorptionLength));
-double ReemissionProbability = 0.75;
-double SurvivingProbability = (1-AbsorptionProbability*(1-ReemissionProbability))*QE;
-
 int PEatMeV; //photoelectron emitted @ 1 MeV
 
-double El_Direction_x_t,El_Direction_y_t,El_Direction_z_t,phi_t,theta_t,Closest_PMT_t,Start_Time_t,Arr_Time_t,Electron_Energy_t,Neutrino_Energy_t,type_t;
+double El_Direction_x_t,El_Direction_y_t,El_Direction_z_t,phi_t,theta_t,Closest_PMT_t,Start_Time_t,Electron_Energy_t,Neutrino_Energy_t,type_t;
 double Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t, Ph_r_AtPMT_t, Ph_theta_AtPMT_t, Ph_phi_AtPMT_t, TravelledDistance_t;
 double Int_Vertex_x_t,Int_Vertex_y_t,Int_Vertex_z_t;
 bool Type_t, IsFirst_t;
@@ -98,7 +91,6 @@ std::vector <double> *Ph_theta_AtPMT_v;
 std::vector <double> *Ph_phi_AtPMT_v;
 std::vector <int> *Closest_PMT_v;
 std::vector <double> *Start_Time_v;
-std::vector <double> *Arr_Time_v;
 std::vector <bool> *Type_v;
 std::vector <double> *Min_Distance_v;
 std::vector <bool> *Hit_v;
@@ -115,69 +107,6 @@ double WindowEndpoint;
 double MaxPMTDistance; //maximum distance in phi between two PMTs
 
 using namespace std;
-
-struct Tuple {
-	double x;
-	double y;
-};
-
-//to keep phi and theta in their intended range
-double Pbc_phi (double in) {
-    if (in<0) return in + M_PI;
-    else if (in>M_PI) return in - M_PI;
-    else return in;
-}
-
-double Pbc_theta (double in) {
-    if (in<0) return in + 2*M_PI;
-    else if (in>2*M_PI) return in - 2*M_PI;
-    else return in;
-}
-
-double GetFloatPrecision(double value, double precision){
-    return (floor((value * pow(10, precision) + 0.5)) / pow(10, precision));
-}
-
-inline bool exists_test0 (const std::string& name) {
-    ifstream f(name.c_str());
-    return f.good();
-}
-
-double DegToRad (double deg) {
-	return deg / 180 * M_PI;
-}
-
-double RadToDeg (double rad) {
-	return rad * 180 / M_PI;
-}
-
-void CartesianToSpherical(double & r,double & theta,double & phi,double x,double y,double z ){
-	
-	r = sqrt(x*x+y*y+z*z);
-	if ( r != 0.0 ){
-		phi = TMath::ACos( z / r );
-		theta = TMath::ATan2( y, x ) + PI;
-		}
-	else
-	theta = phi = 0.0;
-}
-
-void SphericalToCartesian(double & x, double & y, double & z, double r, double theta, double phi){
-	if ( r < 0.0 ){
-		throw "Negative radius in sphericalToCartesian()";
-		}
-	x = r * TMath::Sin( phi ) * TMath::Cos( theta );
-	y = r * TMath::Sin( phi ) * TMath::Sin( theta );
-	z = r * TMath::Cos( phi );
-}
-
-double Distance(double x1, double y1, double z1, double x2, double y2, double z2){
-	return sqrt( pow(x2-x1,2) + pow(y2-y1,2) + pow(z2-z1,2));
-}
-	
-double DistanceOnASphere(double r, double theta1, double phi1, double theta2, double phi2){
-	return TMath::ACos(TMath::Cos(phi1)*TMath::Cos(phi2) + (TMath::Sin(phi1)*TMath::Sin(phi2))*TMath::Cos(theta1-theta2));
-}
 
 //calculate 1st order cross section for a neutrino-electron elastic scattering
 double cross_section (double T) {
@@ -197,10 +126,9 @@ double cross_section_nuX (double T) {
 double survival_probability () {
 
 	double E_nu = nu_energy*pow(10,6);
-	//datas from pep, see Xuefeng technote
 
 	double V_x, Delta_V_x2__V_x2;
-
+	//datas from pep, see Xuefeng technote
 	if (typenu == "pep") {
 		V_x = 5.13e-12;
 		Delta_V_x2__V_x2 = 0.076;
@@ -253,7 +181,7 @@ double CalculateEventEnergy () {
 
 double ClosestPMTIndex (double x_Event,double y_Event,double z_Event, vector<vector<double>> & PMT_Position_Spherical) {
 
-	double MinDistance=50000;
+	double MinDistance=50000; 
 	double Distance_Temp;
 	int Index=50000;
 	int Closest=Index;
@@ -267,8 +195,7 @@ double ClosestPMTIndex (double x_Event,double y_Event,double z_Event, vector<vec
 		theta_PMT = PMT_Position_Spherical[PMT][1];
 		phi_PMT = PMT_Position_Spherical[PMT][2];
 		Distance_Temp = DistanceOnASphere(r_PMT, theta_PMT, phi_PMT,theta_Event, phi_Event);
-		//cout << PMT <<  " r " << r_PMT << "  th " <<   theta_PMT << "  phi " << phi_PMT <<  endl;
-		
+	
 		if(Distance_Temp<MinDistance){
 			Closest = PMT;
 			MinDistance = Distance_Temp;
@@ -279,23 +206,19 @@ double ClosestPMTIndex (double x_Event,double y_Event,double z_Event, vector<vec
 
 			return Closest;
 		}
-
-		//Code to speed up the process
-		
+		//Code to speed up the process, minimum 9 PMTs on the same ring 
 		if (Distance_Temp > MaxPMTDistance*JUNORadius + 0.25) {
 			PMT += 9;
 		}
-	
-		//cout << theta_PMT << "  "  << phi_PMT << "    "  << Index << "   " << Distance_Temp << "  /   " << Closest << "   " << MinDistance << endl;	// DO NOT REMOVE
 	}
 
 	Min_Distance_t = JUNORadius * MinDistance;
 	return -1;
 }
 
-//outputs the position (x,y,z) on the sphere for a photon generated in (j,k,l) parallel to the vector (a,b,c)
+//outputs the position (x,y,z) on the sphere for a photon generated in (j,k,l) with direction (a,b,c)
 
-void MovePhoton (double & x,double& y , double& z, double j, double k, double l, double a, double b , double c ) {
+void Position_on_PMTsphere (double & x,double& y , double& z, double j, double k, double l, double a, double b , double c ) {
 
 	double sroot,num,denom,t;
 
@@ -311,9 +234,10 @@ void MovePhoton (double & x,double& y , double& z, double j, double k, double l,
 	return;
 }
 
-Tuple Generate_Cone (double theta_0, double phi_0, double angle) {
+//generates a randomly distributed photon with an angle to the beginning direction
+std::tuple<double,double> Generate_Cone (double theta_0, double phi_0, double angle) {
 
-	Tuple out;
+	std::tuple<double,double> out;
     double phi_out, theta_out;
     double theta, phi, cos_th1, cos_ph1, sin_th1, sin_ph_sin_th, sin_ph_cos_th;
 
@@ -351,29 +275,9 @@ Tuple Generate_Cone (double theta_0, double phi_0, double angle) {
 
     }
 
-	out.x = theta_out;
-	out.y = phi_out;
+	out = make_tuple(theta_out,phi_out);
 
 	return out;
-}
-
-double GenerateScintStartTime () {
-
-	double StartTime;
-
-	double Check = gRandom -> Uniform(0,1);
-
-	if (Check < 0.707) {
-		StartTime = gRandom -> Exp(4.6*pow(10,-9));
-	} else if (Check < 0.912) {
-		StartTime = gRandom -> Exp(15.1*pow(10,-9));
-	} else if (Check < 0.972) {
-		StartTime = gRandom -> Exp(76.1*pow(10,-9));
-	} else {
-		StartTime = gRandom -> Exp(397*pow(10,-9));
-	}
-
-	return StartTime;
 }
 
 int CheckHit (int SeenPhotons) {
@@ -389,7 +293,6 @@ int CheckHit (int SeenPhotons) {
 }
 
 //Generator for all the photons
-
 int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bool RandomPos, int NEvent, ifstream& ReadSolarPosition) {
 
 	double x_Int,y_Int,z_Int,r_Int,theta_Int,phi_Int;
@@ -421,13 +324,8 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 	double beta_el = pow(1-(pow(m_e/(Event_Energy+m_e),2)),0.5) ; //beta of the electron generated
 	double theta_Cher = acos(1/(beta_el*n)); //Cherenkov angle
 
-	//temp_out << theta_e << "  " << theta_Cher << endl;
-
 	int Photons = gRandom -> Poisson(PEatMeV*Event_Energy);
 	int CherenkovPhotons = gRandom -> Poisson(ChScRatio*Photons);
-
-	//Correction for the decimal part of CherenkovPhotons
-
 
 	if (NEvent < 10) {
 		cout << "Event #" << NEvent << " :  " << Photons << " scintillation and " << CherenkovPhotons << " Cherenkov photons emitted";
@@ -439,9 +337,6 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 	bool IsFirstFlag = true;
 
 	double Provv_StartTime;
-
-	//cout<<Photons<<"  "<<CherenkovPhotons<<"  "<<Event_Energy<<endl;
-	//cout<<max_eEnergy<<endl;
 
 	//Reading the solar positions
 	double solar_nu_theta, solar_nu_phi;
@@ -464,7 +359,7 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 			exit(1);
 		}
 
-		solar_phi = Pbc_phi( M_PI_2 - DegToRad( solar_alt ) );
+		solar_phi = Pbc_phi(M_PI_2 - DegToRad( solar_alt ) );
 		solar_theta = Pbc_theta (M_PI_2 - 0.989601686 - DegToRad (solar_az) ); //0.9... is the angle between the N pole and JUNO coordinates
 
 		if (IsBackgrounds) {
@@ -480,24 +375,13 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		
 	}
 
-	
-
-/*
-	cout << "Altitude " << solar_alt << " Azimut " << solar_az << endl;
-	cout << "Solar phi " << RadToDeg(solar_phi) << " Solar theta " << RadToDeg(solar_theta) << endl;
-	cout << "Nu phi " << RadToDeg(solar_nu_phi) << " Nu theta " << RadToDeg(solar_nu_theta) << endl;
-
-	if (NEvent == 10 ) exit(1);
-*/
-
 	//Generate Electron direction
-	Tuple a;
-	Tuple b;
+	std::tuple<double,double> El_dir,Cher_phot_dir;
 
-	a = Generate_Cone(solar_nu_theta,solar_nu_phi,theta_e);
+	El_dir = Generate_Cone(solar_nu_theta,solar_nu_phi,theta_e);
 
-	double El_theta = a.x;
-	double El_phi = a.y;
+	double El_theta = get<0>(El_dir);
+	double El_phi = get<1>(El_dir);
 
 	double El_x , El_y, El_z;
 
@@ -532,7 +416,6 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 	Ph_phi_AtPMT_v = new vector<double> ();
 	Closest_PMT_v = new vector<int> ();
 	Start_Time_v = new vector<double> ();
-	Arr_Time_v = new vector<double> ();
 	Type_v = new vector<bool> ();
 	Min_Distance_v = new vector<double> ();
 	Hit_v = new vector<bool> ();
@@ -557,25 +440,18 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		phi_vers = TMath::ACos(-1.+2.*gRandom->TRandom::Uniform(0,1));
 		SphericalToCartesian(ph_Direction_x,ph_Direction_y,ph_Direction_z,1,theta_vers,phi_vers);
 
-		MovePhoton(Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t,x_Int,y_Int,z_Int,ph_Direction_x,ph_Direction_y,ph_Direction_z);
+		Position_on_PMTsphere(Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t,x_Int,y_Int,z_Int,ph_Direction_x,ph_Direction_y,ph_Direction_z);
 
 		CartesianToSpherical(trash,theta_t,phi_t,Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t);
 
-		Ph_r_AtPMT_t = JUNORadius; // NOT REALLY TRUE
-		Ph_theta_AtPMT_t = theta_t; // TRUE ONLY WITHOUT ABSORPTION
-		Ph_phi_AtPMT_t = phi_t; // TRUE ONLY WITHOUT ABSORPTION
+		Ph_r_AtPMT_t = JUNORadius; 
+		Ph_theta_AtPMT_t = Pbc_theta(theta_t); 
+		Ph_phi_AtPMT_t = Pbc_phi(phi_t); 
 
 		Closest_PMT_t = ClosestPMTIndex(Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t,PMT_Position_Spherical);
 
 		TravelledDistance_t = Distance(x_Int,y_Int,z_Int,Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t);
 		Type_t = 0; 
-		
-		Arr_Time_t = Start_Time_t + (TravelledDistance_t/c*n) * pow(10,9);
-
-		
-		//cout << iPh << "\t" << xx_at_PMTs << "\t" << yy_at_PMTs << "\t" << zz_at_PMTs << endl;
-			
-		//cout << "PHOTON " << iPh << " : CLOSEST INDEX IS = " << IndexExample << endl;
 
 		//Generate the photon only if it hits the PMT
 		SeenPhotons = CheckHit(SeenPhotons);
@@ -592,17 +468,13 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		Ph_phi_AtPMT_v -> push_back(Ph_phi_AtPMT_t);
 		Closest_PMT_v -> push_back(Closest_PMT_t);
 		Start_Time_v -> push_back(Start_Time_t);
-		Arr_Time_v -> push_back(Arr_Time_t);
 		Type_v -> push_back(Type_t);
 		Min_Distance_v -> push_back(Min_Distance_t);
 		Hit_v -> push_back(Hit_t);
-
-		//cout << i << "    " << iPh % (Photons/10) << endl;
 						
 	}
 
 	//Generate CHERENKOV Photons
-
 
 	for (int iPh=0; iPh<CherenkovPhotons; iPh++) {
 
@@ -616,19 +488,19 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 			continue;
 		}
 
-		b = Generate_Cone(El_theta,El_phi,theta_Cher);
+		Cher_phot_dir = Generate_Cone(El_theta,El_phi,theta_Cher);
 
-		theta_vers = b.x;
-		phi_vers = b.y;
+		theta_vers = get<0>(Cher_phot_dir);
+		phi_vers = get<1>(Cher_phot_dir);
 		SphericalToCartesian(ph_Direction_x,ph_Direction_y,ph_Direction_z,1,theta_vers,phi_vers);
 
-		MovePhoton(Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t,x_Int,y_Int,z_Int,ph_Direction_x,ph_Direction_y,ph_Direction_z);
+		Position_on_PMTsphere(Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t,x_Int,y_Int,z_Int,ph_Direction_x,ph_Direction_y,ph_Direction_z);
 
 		CartesianToSpherical(trash,theta_t,phi_t,Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t);
 
-		Ph_r_AtPMT_t = JUNORadius; // NOT REALLY TRUE
-		Ph_theta_AtPMT_t = theta_t; // TRUE ONLY WITHOUT ABSORPTION
-		Ph_phi_AtPMT_t = phi_t; // TRUE ONLY WITHOUT ABSORPTION
+		Ph_r_AtPMT_t = JUNORadius; 
+		Ph_theta_AtPMT_t = Pbc_theta(theta_t); 
+		Ph_phi_AtPMT_t = Pbc_phi(phi_t); 
 
 		Cher_angle_t = theta_Cher;
 		Elec_angle_t = theta_e;
@@ -638,9 +510,6 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		Closest_PMT_t = ClosestPMTIndex(Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t,PMT_Position_Spherical);
 
 		Type_t = 1;
-
-		Arr_Time_t = Start_Time_t + (TravelledDistance_t/c*n)* pow(10,9);
-
 
 		//Generate the photon only if it hits the PMT
 		SeenPhotons = CheckHit(SeenPhotons);
@@ -657,7 +526,6 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		Ph_phi_AtPMT_v -> push_back(Ph_phi_AtPMT_t);
 		Closest_PMT_v -> push_back(Closest_PMT_t);
 		Start_Time_v -> push_back(Start_Time_t);
-		Arr_Time_v -> push_back(Arr_Time_t);
 		Type_v -> push_back(Type_t);
 		Min_Distance_v -> push_back(Min_Distance_t);
 		Hit_v -> push_back(Hit_t);
@@ -675,7 +543,6 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 	Ph_phi_AtPMT_v -> clear();
 	Closest_PMT_v -> clear();
 	Start_Time_v -> clear();
-	Arr_Time_v -> clear();
 	Type_v -> clear();
 	Min_Distance_v -> clear();
 	Hit_v -> clear();
@@ -707,10 +574,8 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 			col2.push_back(s2);
 			cout << setw(11) << s1 <<  "\t\t" << s2 << endl;
 	}
-	
 	cout << "################################" << endl;
 
-	// quite rough; to be changed
 	istringstream iss(col2[0]);
 	iss >> PEatMeV;
 	istringstream iss1(col2[1]);
@@ -750,8 +615,6 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	istringstream iss18(col2[18]);
 	iss18 >> WindowEndpoint;
 
-	//cout << "PMT Number " << PMTNumber << endl;
-
 	// ### End parsing	
 
 	TFile *rootfile = new TFile(origin_rootfile.c_str());
@@ -779,11 +642,6 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	cout << "Total cross section @ 1 MeV = " << total_cross_section(1.0) << endl;
 
 	std::vector<vector<double>> PMT_Position_Spherical;		
-		
-	std::cout << "AbsorptionProbability = " << AbsorptionProbability << endl;
-	cout << "SurvivingProbability = " << SurvivingProbability << endl;
-	//cout<<"Neutrino-electron angle = "<<theta_e*180./M_PI<<" deg"<<endl;
-	//cout<<"Cherenkov angle = "<<theta_Cher*180./M_PI<<" deg"<<endl;
 
 	cout <<"Scintillation photons generated @ 1 MeV = " << int(PEatMeV) << endl;
 	cout <<"Number of events generated = " << NEvents << endl;
@@ -794,7 +652,6 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	TFile *foutput = new TFile (Output_Rootfile.c_str(), "RECREATE");
 
 	//Making the tree
-	
 	TTree *t = new TTree("t","New Tree");
 	t->Branch("El_Direction_x", &El_Direction_x_t, "El_Direction_x/D");
 	t->Branch("El_Direction_y", &El_Direction_y_t, "El_Direction_y/D");
@@ -807,7 +664,6 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	t->Branch("Ph_phi_AtPMT","std::vector<double>", &Ph_phi_AtPMT_v,32000, 99);
 	t->Branch("Closest_PMT","std::vector<int>", &Closest_PMT_v, 32000,99);
 	t->Branch("Start_Time","std::vector<double>", &Start_Time_v, 32000,99);
-	t->Branch("Arr_Time","std::vector<double>", &Arr_Time_v, 32000,99);
 	t->Branch("Electron_Energy", &Electron_Energy_t, "Electron_Energy/D");
 	t->Branch("Int_Vertex_x", &Int_Vertex_x_t, "Int_Vertex_x/D");
 	t->Branch("Int_Vertex_y", &Int_Vertex_y_t, "Int_Vertex_y/D");
@@ -844,23 +700,7 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 		//cout << PMT << "   " <<r_PMT << "  " << theta_PMT << "   " << phi_PMT << endl; 
 	}	
 
-	//exit(1);
-
-	// #################### PMT_Position_Sperical is already sorted in phi ####################################
-	//sorting PMT_Position_Spherical in phi
-	//std::sort(PMT_Position_Spherical.begin(),PMT_Position_Spherical.end(),[] (const std::vector<int>& a, const std::vector<int>& b) {return a[2] < b[2];});
-
-	/*ofstream WriteTry;
-	WriteTry.open("Prova.txt");
-	cout << "##########################" << endl;
-	cout << "Sorted PMT_Position_Spherical" << endl;
-	for(int PMT=0;PMT<PMTNumber;PMT++){	
-		WriteTry<<PMT_Position_Spherical[PMT][2]<<endl;
-	}
-	cout << "##########################" << endl;*/
-	
-
-	//Find MaxPMTDistance
+	//Find MaxPMTDistance -> the maximum distance between two contiguous PMTs 
 	MaxPMTDistance = 0;
 	double ProvPMTDistance;
 
@@ -870,11 +710,9 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 			MaxPMTDistance = ProvPMTDistance;
 		}	
 	}	
-	//cout << "MaxPMTDistance = " << MaxPMTDistance<<endl;
 
 	ifstream ReadSolarPosition;
 	ReadSolarPosition.open(SolarPositions.c_str());
-
 	
 	foutput->cd();
 
