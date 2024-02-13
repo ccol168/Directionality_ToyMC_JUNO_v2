@@ -313,12 +313,7 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 	}
 
 	//Randomize the energy of the event
-	double Event_Energy;
-	if (IsBackgrounds) {
-		Event_Energy = gRandom -> TRandom::Uniform(min_eEnergy,WindowEndpoint);
-	} else {
-		Event_Energy = CalculateEventEnergy();
-	}
+	double Event_Energy = CalculateEventEnergy();
 	
 	double theta_e = acos((1+m_e/nu_energy)*pow(Event_Energy/(Event_Energy+2*m_e),0.5)); //angle between the solar-nu and the electron scattered (assuming 7Be-nu)
 	double beta_el = pow(1-(pow(m_e/(Event_Energy+m_e),2)),0.5) ; //beta of the electron generated
