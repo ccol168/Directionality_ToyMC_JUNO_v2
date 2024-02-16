@@ -88,10 +88,19 @@ for i in range(0,Runs) :
             output_line = line
             if line_content[0] == "IsBackgrounds" :
                 IsBackgrounds = line_content[1]
+            if line_content[0] == "Fastmode" :
+                Fastmode = line_content[1]
+            if line_content[0] == "EventLimit" :
+                MaxNEvents = line_content[1]
         WriteFileCfg.write(output_line)
 
     ReadCfgFile.close()
     WriteFileCfg.close()
+
+    if Fastmode == '1' :
+        EffectiveNEvents = MaxNEvents
+    elif Fastmode == '0' :
+        EffectiveNEvents = 60
 
 #writing the .sh files
     WriteFileSh = open("Events/" + NameRun + "/sh/Script_" +str(i).zfill(4)+".sh","w")
@@ -106,7 +115,7 @@ for i in range(0,Runs) :
 
     WriteFileSh.write(os.getcwd() + '/Ordered_hits  ')
     WriteFileSh.write(DirPath + 'root/' + NameRun + '_' + str(i).zfill(4) + '.root  ')
-    WriteFileSh.write(DirPath + 'analyzed/Analyzed_' + NameRun + '_' + str(i).zfill(4) + '.root  60 ' + IsBackgrounds)
+    WriteFileSh.write(DirPath + 'analyzed/Analyzed_' + NameRun + '_' + str(i).zfill(4) + '.root ' + EffectiveNEvents + ' ' + IsBackgrounds)
 
     WriteFileSh.close()
 

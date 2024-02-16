@@ -100,7 +100,7 @@ bool Hit_t;
 bool fastmode; //does not save the events at more than 5 ns
 double TimeCut; //cut photons emitted at times lower than timecut
 bool FixedSun, IsBackgrounds;
-double Fastmode_cut; //time cut in fastmode
+int EventLimit; //the number of scintillation events produced
 std::string typenu;
 double WindowEndpoint;
 
@@ -292,6 +292,20 @@ int CheckHit (int SeenPhotons) {
 	return SeenPhotons;
 }
 
+std::vector<double> GenerateScintTimes (int NPhotons) {
+
+	vector<double> Scint_Times;
+	double Test_Time;
+	for (int i = 0; i < NPhotons; i++) {
+		do {
+			Test_Time = Time_PDFs[1] -> GetRandom();
+		} while (Test_Time < TimeCut);
+		Scint_Times.push_back(Test_Time);
+	}
+	std::sort(Scint_Times.begin(),Scint_Times.end());
+	return Scint_Times;
+}
+
 //Generator for all the photons
 int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bool RandomPos, int NEvent, ifstream& ReadSolarPosition) {
 
@@ -321,6 +335,10 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 
 	int Photons = gRandom -> Poisson(PEatMeV*Event_Energy);
 	int CherenkovPhotons = gRandom -> Poisson(ChScRatio*Photons);
+	int EffectivePhotonsGenerated;
+
+	if (fastmode) EffectivePhotonsGenerated = EventLimit;
+	else EffectivePhotonsGenerated = Photons;
 
 	if (NEvent < 10) {
 		cout << "Event #" << NEvent << " :  " << Photons << " scintillation and " << CherenkovPhotons << " Cherenkov photons emitted";
@@ -417,20 +435,13 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 
 	//Generate SCINTILLATION Photons
 
-	for(int iPh=0; iPh<Photons; iPh++){
+	std::vector<double> Scint_Times = GenerateScintTimes(Photons); //generates and sorts the scintillation photons times
+
+	for(int iPh=0;; iPh++){ //continues until it breaks because it generated enough photons
 
 		//Generate unit vector over a sphere
-
-		do {
-			Provv_StartTime = Time_PDFs[1] -> GetRandom();
-		} while (Provv_StartTime < TimeCut);
-		
-		Start_Time_t = Provv_StartTime;
-
-		if (fastmode && Start_Time_t > Fastmode_cut) {
-			continue;
-		}
-
+		Start_Time_t = Scint_Times[iPh];
+	
 		theta_vers = gRandom->TRandom::Uniform(2*PI);
 		phi_vers = TMath::ACos(-1.+2.*gRandom->TRandom::Uniform(0,1));
 		SphericalToCartesian(ph_Direction_x,ph_Direction_y,ph_Direction_z,1,theta_vers,phi_vers);
@@ -448,10 +459,10 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		TravelledDistance_t = Distance(x_Int,y_Int,z_Int,Ph_x_AtPMT_t,Ph_y_AtPMT_t,Ph_z_AtPMT_t);
 		Type_t = 0; 
 
-		//Generate the photon only if it hits the PMT
-		SeenPhotons = CheckHit(SeenPhotons);
+		//Check if the photon hits a PMT or not, SeenPhotons counts the number of photon seen in the event
+		SeenPhotons = CheckHit(SeenPhotons); //it also sets the value of Hit_t
 
-		TotalPhotons++;
+		TotalPhotons++; 
 
 		//fill vectors 
 
@@ -466,8 +477,19 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		Type_v -> push_back(Type_t);
 		Min_Distance_v -> push_back(Min_Distance_t);
 		Hit_v -> push_back(Hit_t);
+
+		if (fastmode && SeenPhotons == EffectivePhotonsGenerated) {
+			break;
+		} else if (iPh == Photons - 1) {
+			if (fastmode) {
+				std::cerr << "ERROR in event #" << NEvent << ", not enough hits generated (" << SeenPhotons << "/" << EffectivePhotonsGenerated << ")" << std::endl;
+			}
+			break;
+		}
 						
 	}
+
+	Scint_Times.clear();
 
 	//Generate CHERENKOV Photons
 
@@ -478,10 +500,6 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		} while (Provv_StartTime < TimeCut);
 
 		Start_Time_t = Provv_StartTime;
-
-		if (fastmode && Start_Time_t > Fastmode_cut) {
-			continue;
-		}
 
 		Cher_phot_dir = Generate_Cone(El_theta,El_phi,theta_Cher);
 
@@ -606,7 +624,7 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	istringstream iss16(col2[16]);
 	iss16 >> IsBackgrounds;
 	istringstream iss17(col2[17]);
-	iss17 >> Fastmode_cut;
+	iss17 >> EventLimit;
 	istringstream iss18(col2[18]);
 	iss18 >> WindowEndpoint;
 
@@ -711,10 +729,10 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	
 	foutput->cd();
 
-	int SeenPhotons = 0;
+	int SeenTotalPhotons = 0;
 
 	for (int i=0; i<NEvents; i++) {
-		SeenPhotons += GeneratePhotons(t, PMT_Position_Spherical, RandomIntVertex, i, ReadSolarPosition);
+		SeenTotalPhotons += GeneratePhotons(t, PMT_Position_Spherical, RandomIntVertex, i, ReadSolarPosition);
 		if (NEvents > 10) {  //to avoid floating point exceptions for NEvents < 10
 			if (i % 100 == 0 && i != 0) { // check if the index is a multiple of tenth
 			std::cout << i << "-th Event ; " << round ( (double)i / (double)NEvents * 10000 ) / 100 << "% of events simulated \n";
@@ -731,7 +749,7 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 
 	ReadSolarPosition.close();
 
-	cout << endl << "Geometric coverage = " << double(SeenPhotons)/double(TotalPhotons) <<endl;
+	cout << endl << "Geometric coverage = " << double(SeenTotalPhotons)/double(TotalPhotons) <<endl;
 	cout << "#############" << endl;
 	
 	return 0;
