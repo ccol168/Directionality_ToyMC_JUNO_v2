@@ -9,6 +9,8 @@ Directionality_ToyMC: Directionality_ToyMC.o Functions.o
 	g++ Directionality_ToyMC.o Functions.o -o Directionality_ToyMC -lMinuit ${INCS} ${LIBS}
 Ordered_hits: Ordered_hits.o Functions.o
 	g++ Ordered_hits.o Functions.o -o Ordered_hits -lMinuit ${INCS} ${LIBS}
+CheckToyMC: Check_ToyMC.cxx 
+	g++ Check_ToyMC.cxx -o Check_ToyMC ${INCS} ${LIBS}
 
 Ordered_hits.o: Ordered_hits.cxx 
 	g++ -c Ordered_hits.cxx -o Ordered_hits.o -lMinuit ${INCS} ${LIBS}

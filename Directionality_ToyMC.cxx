@@ -54,6 +54,7 @@ double ChScRatio;
 int NEvents;
 int TotalPhotons = 0;
 TH1D** Time_PDFs = new TH1D*[2]; //container for the time PDFs, pos 0 for Cherenkov, pos 1 for scintillation
+TH1D** B8_PDFs = new TH1D*[1]; 
 
 //Useful values
 
@@ -62,12 +63,10 @@ double c = 299792458 ; // m/s
 double m_e = 0.51099895; //MeV    electron mass
 double Be7_energy = 0.862; //MeV    energy of a 7Be neutrino
 double pep_energy = 1.44; //MeV  energy of a pep neutrino
-double nu_energy;
 double G_F = 1.1663787*pow(10,-11); //MeV^-2  Fermi constant
 double sin2_thetaW = 0.23121; //Weinberg angle
 
-double max_eEnergy; //  maximum electron energy from a neutrino scattering
-double min_eEnergy; // minimum deposited energy from a neutrino scattering
+double min_eEnergy; // minimum deposited energy from a neutrino scattering -> set globally by the energy window 
 
 double RefractionIndex = 1.5;
 
@@ -97,10 +96,10 @@ std::vector <bool> *Hit_v;
 
 double Min_Distance_t;
 bool Hit_t;
-bool fastmode; //does not save the events at more than 5 ns
+bool fastmode; //saves only a limited number of hits
 double TimeCut; //cut photons emitted at times lower than timecut
 bool FixedSun, IsBackgrounds;
-int EventLimit; //the number of scintillation events produced
+int EventLimit; //the number of scintillation hits produced
 std::string typenu;
 double WindowEndpoint;
 
@@ -108,22 +107,56 @@ double MaxPMTDistance; //maximum distance in phi between two PMTs
 
 using namespace std;
 
+double CalculateNuEnergy () {
+
+	double neutrino_energy, max_eEnergy;
+
+	if (typenu == "Be7") {
+
+		neutrino_energy = Be7_energy;
+
+	} else if (typenu == "pep") {
+
+		neutrino_energy = pep_energy;
+
+	} else if (typenu == "B8" ) {
+
+		while (true) {
+
+			neutrino_energy = B8_PDFs[0] -> GetRandom();
+			max_eEnergy = 2*pow(neutrino_energy,2)/(m_e+2*neutrino_energy); 
+
+			if (max_eEnergy > min_eEnergy) { //checks if the neutrino has enough energy to emit an electron inside the ROI
+				break;
+			} 
+
+		}
+		
+	} else {
+		cout << "ERROR : invalid nu type in Configuration File" << endl;
+		exit(1);
+	}
+
+	return neutrino_energy;
+
+}
+
 //calculate 1st order cross section for a neutrino-electron elastic scattering
-double cross_section (double T) {
+double cross_section (double T, double nu_energy) {
 	double gl = 0.5 - sin2_thetaW -1 ;
 	double gr = - sin2_thetaW;
 
 	return ((2*(pow(G_F,2))*m_e)/M_PI)*(pow(gl,2) + pow(gr,2)*pow(1-T/nu_energy,2) - gl*gr*m_e*T/pow(nu_energy,2));
 }
 
-double cross_section_nuX (double T) {
+double cross_section_nuX (double T, double nu_energy) {
 	double g_L = 0.5 - sin2_thetaW;
 	double g_R = -sin2_thetaW;
 
 	return 2*m_e*G_F*G_F/M_PI * (pow(g_L,2) + pow(g_R,2)*pow(1-T/nu_energy,2) - g_L*g_R*m_e/nu_energy*T/nu_energy);
 }
 
-double survival_probability () {
+double survival_probability (double nu_energy) {
 
 	double E_nu = nu_energy*pow(10,6);
 
@@ -135,6 +168,9 @@ double survival_probability () {
 	} else if (typenu == "Be7") {
 		V_x = 6.16e-12;
 		Delta_V_x2__V_x2 = 0.029;
+	} else if (typenu == "B8") {
+		V_x = 6.81e-12;
+		Delta_V_x2__V_x2 = 0.010;
 	} else {
 		throw "ERROR: invalid typenu";
 	}
@@ -152,26 +188,33 @@ double survival_probability () {
 	return pow(cos(theta13),4)*Pad_2 + pow(sin(theta13),4);
 
 }
-double total_cross_section (double T) {
+double total_cross_section (double T, double nu_energy) {
 
-	return survival_probability()*cross_section(T) + (1-survival_probability())*cross_section_nuX(T);
+	return survival_probability(nu_energy)*cross_section(T,nu_energy) + (1-survival_probability(nu_energy))*cross_section_nuX(T,nu_energy);
 
 }
 
 //sample cross_section with an accept-reject method
-double CalculateEventEnergy () {
+double CalculateEventEnergy (double nu_energy) {
 	double EventEnergy, test;
 	bool flag = false;
 
+	double max_eEnergy = 2*pow(nu_energy,2)/(m_e+2*nu_energy); 
+
+	if (max_eEnergy > nu_energy ) {
+		cerr << "SOMETHING WENT WRONG: max electron energy > neutrino energy " << endl;
+		exit(1);
+	}
+
 	if (IsBackgrounds == true) {
-		return gRandom -> Uniform(min_eEnergy,max_eEnergy);
+		return gRandom -> Uniform(min_eEnergy,WindowEndpoint);
 	}
 
 	while (flag == false) {
 		flag = false;
 		EventEnergy = gRandom -> Uniform(min_eEnergy,max_eEnergy);
-		test = gRandom -> Uniform(0.,total_cross_section(0.)); //the maximum cross section is at T=0
-		if (test < total_cross_section(EventEnergy)) {
+		test = gRandom -> Uniform(0.,total_cross_section(0.,nu_energy)); //the maximum cross section is at T=0
+		if (test < total_cross_section(EventEnergy,nu_energy)) {
 			flag = true;
 		}
 	}
@@ -327,7 +370,8 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 	}
 
 	//Randomize the energy of the event
-	double Event_Energy = CalculateEventEnergy();
+	double nu_energy = CalculateNuEnergy();
+	double Event_Energy = CalculateEventEnergy(nu_energy);
 	
 	double theta_e = acos((1+m_e/nu_energy)*pow(Event_Energy/(Event_Energy+2*m_e),0.5)); //angle between the solar-nu and the electron scattered (assuming 7Be-nu)
 	double beta_el = pow(1-(pow(m_e/(Event_Energy+m_e),2)),0.5) ; //beta of the electron generated
@@ -341,8 +385,9 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 	else EffectivePhotonsGenerated = Photons;
 
 	if (NEvent < 10) {
-		cout << "Event #" << NEvent << " :  " << Photons << " scintillation and " << CherenkovPhotons << " Cherenkov photons emitted";
-		cout << " (Electron energy = " << Event_Energy << " MeV)" << endl;  
+		cout << "Event #" << NEvent << " :  " << Photons << " scintillation and " << CherenkovPhotons << " Cherenkov photons emitted" << endl;
+		cout << "        Nu energy = " << nu_energy << "    Electron energy = " << Event_Energy << endl;  
+		cout << "        Theta_e = " << theta_e << "    Theta_Cher = " << theta_Cher << endl << endl; 
 	} else if (NEvent == 10) {
 		cout<<endl;
 	}
@@ -543,7 +588,6 @@ int GeneratePhotons (TTree* t, vector<vector<double>> PMT_Position_Spherical, bo
 		Min_Distance_v -> push_back(Min_Distance_t);
 		Hit_v -> push_back(Hit_t);
 
-		
 	}
 
 	t -> Fill();
@@ -572,7 +616,7 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	vector<string> col1;
 	vector<string> col2;
 	string line;
-	string cher_times, scint_times;
+	string cher_times, scint_times, Boron_PDFs_file, Boron_PDFs_name;
 	string origin_rootfile, PMTPositions, SolarPositions;
 	bool RandomIntVertex;
 
@@ -627,6 +671,10 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	iss17 >> EventLimit;
 	istringstream iss18(col2[18]);
 	iss18 >> WindowEndpoint;
+	istringstream iss19(col2[19]);
+	iss19 >> Boron_PDFs_file;
+	istringstream iss20(col2[20]);
+	iss20 >> Boron_PDFs_name;
 
 	// ### End parsing	
 
@@ -635,24 +683,24 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	Time_PDFs[0] = (TH1D*)rootfile->Get(cher_times.c_str());
 	Time_PDFs[1] = (TH1D*)rootfile->Get(scint_times.c_str());
 
+	if (typenu == "B8") {
+
+		TFile *B8_rootfile = new TFile(Boron_PDFs_file.c_str());
+		B8_PDFs[0] = (TH1D*)B8_rootfile->Get(Boron_PDFs_name.c_str());
+
+	}
+	
 	gRandom = new TRandom3(0);
 	gRandom->SetSeed(0);
 
-	if (typenu == "Be7") {
-		nu_energy = Be7_energy;
-	} else if (typenu == "pep") {
-		nu_energy = pep_energy;
-	} else {
-		cout << "ERROR : invalid nu type in "<< Configuration_Text.c_str() << endl;
-		exit(1);
-	}
+	double nu_energy = CalculateNuEnergy();
 
-	max_eEnergy = 2*pow(nu_energy,2)/(m_e+2*nu_energy); //MeV
+	double max_eEnergy = 2*pow(nu_energy,2)/(m_e+2*nu_energy); //MeV
 
-	cout << "Nu_e survival Probability = " << survival_probability() << endl;
-	cout << "Nu_e cross section @ 1 MeV = " << cross_section(1.0) << endl;
-	cout << "Nu_x cross section @ 1 MeV = " << cross_section_nuX(1.0) << endl;
-	cout << "Total cross section @ 1 MeV = " << total_cross_section(1.0) << endl;
+	cout << "Nu_e survival Probability = " << survival_probability(nu_energy) << endl;
+	cout << "Nu_e cross section @ 1 MeV = " << cross_section(1.0,nu_energy) << endl;
+	cout << "Nu_x cross section @ 1 MeV = " << cross_section_nuX(1.0,nu_energy) << endl;
+	cout << "Total cross section @ 1 MeV = " << total_cross_section(1.0,nu_energy) << endl;
 
 	std::vector<vector<double>> PMT_Position_Spherical;		
 

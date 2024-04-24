@@ -1,13 +1,13 @@
 PEatMeV 2207
 ChScRatio 0.0014
-NEvents 1000
+NEvents 5000
 FV 14.0
 OriginRootfile My_Rootfiles/Elecsim_PDFs_Be7_LowerLimit.root
 CherenkovTimes Hama_Cherenkov_Times
 ScintTimes Hama_Scint_Times
-Nu_type Be7
+Nu_type B8
 Fastmode 1
-Min_eEnergy 0.6
+Min_eEnergy 0.001
 RandomIntVertex 1
 Time_Cut -10000
 PMTPositions PMTPos_CD_LPMT_onlyHama.csv
@@ -15,5 +15,7 @@ PMTNumber 4996
 SolarPositions Sun_Position/sunposition_since1Jan2024_for10years_PDFcreation.txt
 FixedSun 0
 IsBackgrounds 0
-EventLimit 60
-WindowEndpoint 0.8
+EventLimit 1
+WindowEndpoint 16.
+Boron_PDFs_File B8_Spectrum_Histo.root
+Boron_PDFs_Name my1DHist
