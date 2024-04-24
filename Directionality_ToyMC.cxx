@@ -693,7 +693,13 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	gRandom = new TRandom3(0);
 	gRandom->SetSeed(0);
 
-	double nu_energy = CalculateNuEnergy();
+	double nu_energy;
+
+	if (typenu == "B8") {
+		nu_energy = B8_PDFs[0]->GetBinLowEdge(B8_PDFs[0]->FindLastBinAbove(0.) + 1);
+	} else {
+		nu_energy = CalculateNuEnergy();
+	}
 
 	double max_eEnergy = 2*pow(nu_energy,2)/(m_e+2*nu_energy); //MeV
 
@@ -706,7 +712,7 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 
 	cout <<"Scintillation photons generated @ 1 MeV = " << int(PEatMeV) << endl;
 	cout <<"Number of events generated = " << NEvents << endl;
-	cout <<"Energy of the incoming neutrino = " << nu_energy << " MeV" << endl;
+	cout <<"Maximum energy of the incoming neutrino = " << nu_energy << " MeV" << endl;
 	cout <<"Maximum electron energy = "<<max_eEnergy<<" MeV" <<endl<<endl;
 
 	//foutput must be defined before the tree to avoid errors 
