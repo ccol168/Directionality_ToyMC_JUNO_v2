@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
     double nu_x,nu_y,nu_z;
 
     std::vector<double>* Start_Time = new std::vector<double>;
-    std::vector<bool>* Type = new std::vector<bool>;
+    std::vector<int>* Type = new std::vector<int>;
     std::vector<bool>* Hit = new std::vector<bool>;
     std::vector<double>* PhX = new std::vector<double>;
     std::vector<double>* PhY = new std::vector<double>;
