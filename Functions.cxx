@@ -37,8 +37,8 @@ void CartesianToSpherical(double & r,double & theta,double & phi,double x,double
 	
 	r = sqrt(x*x+y*y+z*z);
 	if ( r != 0.0 ){
-		phi = TMath::ACos( z / r );
-		theta = TMath::ATan2( y, x );
+		phi = Pbc_phi(TMath::ACos( z / r ));
+		theta = Pbc_theta(TMath::ATan2( y, x ));
 		}
 	else
 	theta = phi = 0.0;
@@ -58,7 +58,7 @@ double Distance(double x1, double y1, double z1, double x2, double y2, double z2
 }
 	
 // distance between two points on a sphere
-double DistanceOnASphere(double r, double theta1, double phi1, double theta2, double phi2){
+double DistanceOnASphere(double theta1, double phi1, double theta2, double phi2){
 	return TMath::ACos(TMath::Cos(phi1)*TMath::Cos(phi2) + (TMath::Sin(phi1)*TMath::Sin(phi2))*TMath::Cos(theta1-theta2));
 }
 
