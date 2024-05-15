@@ -96,7 +96,7 @@ std::vector <int> *Type_v;
 std::vector <bool> *Hit_v;
 
 std::vector<std::vector<double>> PMT_Position_Spherical;	
-std::vector<std::vector<std::tuple<int,double,double,double>>> PMT_Position_Fast;	
+std::vector<std::vector<std::tuple<int,double,double>>> PMT_Position_Fast;	
 
 bool Hit_t;
 bool fastmode; //saves only a limited number of hits
@@ -235,10 +235,7 @@ int ClosestPMTIndex (double x_Event,double y_Event,double z_Event) {
 		
 	for(int PMT_ring=0;PMT_ring<PMT_Position_Fast.size();PMT_ring++){
 
-		//r_PMT = get<0>(PMT_Position_Fast[PMT_ring][0]);
-		//theta_PMT = get<1>(PMT_Position_Fast[PMT_ring][0]);
-		phi_PMT = get<3>(PMT_Position_Fast[PMT_ring][0]);
-		//Distance_Temp = DistanceOnASphere(r_PMT, theta_PMT, phi_PMT,theta_Event, phi_Event);
+		phi_PMT = get<2>(PMT_Position_Fast[PMT_ring][0]);
 
 		if ( (abs (phi_PMT - phi_Event) + 1e-5)*JUNORadius <= PMTRadius ) {
 
@@ -246,14 +243,13 @@ int ClosestPMTIndex (double x_Event,double y_Event,double z_Event) {
 
 			for (int PMT_NuminRing=0; PMT_NuminRing < PMT_Position_Fast[PMT_ring].size(); PMT_NuminRing++) {
 
-				r_PMT = get<1>(PMT_Position_Fast[PMT_ring][PMT_NuminRing]);
-				theta_PMT = get<2>(PMT_Position_Fast[PMT_ring][PMT_NuminRing]);
-				phi_PMT = get<3>(PMT_Position_Fast[PMT_ring][PMT_NuminRing]);
+				theta_PMT = get<1>(PMT_Position_Fast[PMT_ring][PMT_NuminRing]);
+				phi_PMT = get<2>(PMT_Position_Fast[PMT_ring][PMT_NuminRing]);
 				Distance_Temp = DistanceOnASphere(theta_PMT, phi_PMT,theta_Event, phi_Event);
 
 				//cout << "       From #" << PMT_NuminRing << " =  " << Distance_Temp*r_PMT << endl;
 
-					if (Distance_Temp*r_PMT/1000 <= PMTRadius ) {
+					if (Distance_Temp*JUNORadius <= PMTRadius ) {
 						return get<0>(PMT_Position_Fast[PMT_ring][PMT_NuminRing]);
 					}
 			}
@@ -510,30 +506,32 @@ int GenerateEvents (TTree* t, bool RandomPos, int NEvent, ifstream& ReadSolarPos
 		solar_phi = Pbc_phi(M_PI_2 - DegToRad( solar_alt ) );
 		solar_theta = Pbc_theta (M_PI_2 - 0.989601686 - DegToRad (solar_az) ); //0.9... is the angle between the N pole and JUNO coordinates
 
-		if (IsBackgrounds) {
-			solar_nu_theta = gRandom -> TRandom::Uniform(2*PI);
-			solar_nu_phi = TMath::ACos(-1.+2.*gRandom->TRandom::Uniform(0,1));
-		} else {
-
-			solar_nu_phi =  Pbc_phi(M_PI - solar_phi);
-			solar_nu_theta = Pbc_theta( M_PI + solar_theta);
-
-		}
+		solar_nu_phi =  Pbc_phi(M_PI - solar_phi);
+		solar_nu_theta = Pbc_theta( M_PI + solar_theta);
 		
 	}
 
+	double El_theta,El_phi, El_x,El_y,El_z;
+
 	//Generate Electron direction
-	std::tuple<double,double> El_dir,Cher_phot_dir;
 
-	El_dir = Generate_Cone(solar_nu_theta,solar_nu_phi,theta_e);
+	if (IsBackgrounds) {
 
-	double El_theta = get<0>(El_dir);
-	double El_phi = get<1>(El_dir);
+		El_theta = gRandom->TRandom::Uniform(2*PI);
+		El_phi = TMath::ACos(-1.+2.*gRandom->TRandom::Uniform(0,1));
 
-	double El_x , El_y, El_z;
+	} else {
+		
+		std::tuple<double,double> El_dir;
+
+		El_dir = Generate_Cone(solar_nu_theta,solar_nu_phi,theta_e);
+
+		El_theta = get<0>(El_dir);
+		El_phi = get<1>(El_dir);
+	}
 
 	SphericalToCartesian(El_x,El_y,El_z,1.,El_theta,El_phi);
-
+	
 	//Set all event-level variables 
 	Cher_angle_t = theta_Cher;
 	Elec_angle_t = theta_e;
@@ -642,7 +640,6 @@ int GenerateEvents (TTree* t, bool RandomPos, int NEvent, ifstream& ReadSolarPos
 double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 
 	ifstream file(Configuration_Text);
-	//ofstream temp_out("Theta_e.txt");
 	vector<string> col1;
 	vector<string> col2;
 	string line;
@@ -800,30 +797,29 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	}	
 
 	double past_phi = PMT_Position_Spherical[0][2];
-	std::vector<tuple<int,double,double,double>> Filler;
+	std::vector<tuple<int,double,double>> Filler;
 
-	for (int i=0; i<PMTNumber; i++) {
+	for (int i=0; i<PMT_Position_Spherical.size(); i++) {
 
 		Index = i;
-		r_PMT = PMT_Position_Spherical[i][0];
 		theta_PMT = PMT_Position_Spherical[i][1];
 		phi_PMT = PMT_Position_Spherical[i][2];
 
 		if (abs(phi_PMT - past_phi) > 1e-5) {
 			PMT_Position_Fast.push_back(Filler);
 			Filler.clear();
-			Filler.push_back(make_tuple(Index,r_PMT,theta_PMT,phi_PMT));
+			Filler.push_back(make_tuple(Index,theta_PMT,phi_PMT));
 			
 		} else {
-			Filler.push_back(make_tuple(Index,r_PMT,theta_PMT,phi_PMT));
+			Filler.push_back(make_tuple(Index,theta_PMT,phi_PMT));
 		}
 		past_phi = phi_PMT;
 	}
 
 	PMT_Position_Fast.push_back(Filler);
 	Filler.clear();
-
-/* If you want to print out the PMT positions and PMT rings
+/*
+// If you want to print out the PMT positions and PMT rings
 
 	cout<< "SIZE 0 =      " << PMT_Position_Fast[0].size() << endl; 
 	cout<< "SIZE 1 =      " << PMT_Position_Fast[1].size() << endl; 
@@ -833,17 +829,19 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	
 	for (int j=0; j<PMT_Position_Fast.size(); j++) {
 
-		cout << "Block number" << j << ":   " << endl;
+		cout << "Ring number " << j << ":   " << endl;
 		
 		for (int itr = 0; itr <  PMT_Position_Fast[j].size(); itr++ ) {
 			
-			cout << "       " << get<0>(PMT_Position_Fast[j][itr]) << "   " << get<1>(PMT_Position_Fast[j][itr]) << "  " << get<2>(PMT_Position_Fast[j][itr]) << "   " << get<3>(PMT_Position_Fast[j][itr]) << endl;
+			cout << "       " << get<0>(PMT_Position_Fast[j][itr]) << "   " << get<1>(PMT_Position_Fast[j][itr]) << "  " << get<2>(PMT_Position_Fast[j][itr]) << endl;
 		}
 	
 	}
 	
+	cout << endl << endl;
 	//exit(0);
 */
+
 	ifstream ReadSolarPosition;
 	ReadSolarPosition.open(SolarPositions.c_str());
 	
@@ -854,7 +852,7 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	for (int i=0; i<NEvents; i++) {
 		SeenTotalPhotons += GenerateEvents(t, RandomIntVertex, i, ReadSolarPosition);
 		if (NEvents > 10) {  //to avoid floating point exceptions for NEvents < 10
-			if (i % 100 == 0 && i != 0) { // check if the index is a multiple of tenth
+			if (i % 1000 == 0 && i != 0) { // check if the index is a multiple of tenth
 			std::cout << i << "-th Event ; " << round ( (double)i / (double)NEvents * 10000 ) / 100 << "% of events simulated \n";
     		}
 		}

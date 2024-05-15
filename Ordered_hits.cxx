@@ -170,7 +170,6 @@ int main(int argc, char** argv) {
         vec_lenght = Hit -> size();
 
         //Checks if there are enough hits to have at least Nth_hits (the value given at the beginning) hits, if not it skips the event entirely
-        //If that happens too often, it is advised to lower Nth_hits or make Fastmode_cut bigger
 
 	    HitsinEvent = 0;
 
@@ -210,7 +209,7 @@ int main(int argc, char** argv) {
 
 					if (Start_Time -> at(j) < FirstTenValues[k] && Hit -> at(j) ==1) {
 					
-						if (k != Nth_hits -1 ) {
+						if (k != Nth_hits - 1 ) {
 							
 							int* provvint = new int[Nth_hits-1];
 							double* provvdouble = new double[Nth_hits-1];
