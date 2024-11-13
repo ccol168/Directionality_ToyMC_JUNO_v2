@@ -441,7 +441,7 @@ int GenerateEvents (TTree* t, bool RandomPos, int NEvent, ifstream& ReadSolarPos
 	//Generate a random interaction vertex
 
 	if (RandomPos == true ) {
-		r_Int = gRandom -> TRandom::Uniform(FV);
+		r_Int = FV * pow(gRandom -> TRandom::Uniform(1),1./3.);
 		theta_Int = gRandom -> TRandom::Uniform(2*PI);
 		phi_Int = TMath::ACos(-1.+2.*gRandom->TRandom::Uniform(0,1));
 		SphericalToCartesian(x_Int,y_Int,z_Int,r_Int,theta_Int,phi_Int);
@@ -637,7 +637,7 @@ int GenerateEvents (TTree* t, bool RandomPos, int NEvent, ifstream& ReadSolarPos
 }
 
 
-double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
+void Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 
 	ifstream file(Configuration_Text);
 	vector<string> col1;
@@ -870,7 +870,7 @@ double Directionality_ToyMC(string Configuration_Text, string Output_Rootfile) {
 	cout << endl << "Geometric coverage = " << double(SeenTotalPhotons)/double(TotalPhotons) <<endl;
 	cout << "#############" << endl;
 	
-	return 0;
+	return;
 
 }
 
